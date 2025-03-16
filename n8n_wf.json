@@ -1,0 +1,122 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{$json[\"sql\"]}}",
+        "database": "/path/to/garage_management.db"
+      },
+      "name": "SQLite Execute",
+      "type": "n8n-nodes-base.sqlite",
+      "typeVersion": 1,
+      "position": [300, 400]
+    },
+    {
+      "parameters": {
+        "model": "sqlcoder:latest",
+        "prompt": "Generate an SQL query for the following database schema:\n\nTables:\n- garages (id, name, location, capacity)\n- services (id, service_name, price, garage_id)\n- provided_services (id, service_id, customer_id, date_provided)\n\nNatural language query: {{$json[\"user_query\"]}}",
+        "input": "{{$json[\"user_query\"]}}"
+      },
+      "name": "SQL Generator",
+      "type": "n8n-nodes-base.llama",
+      "typeVersion": 1,
+      "position": [100, 400]
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:latest",
+        "prompt": "The user query was: {{$json[\"user_query\"]}}.\nThe SQL query executed was: {{$json[\"sql\"]}}.\nThe result is: {{$json[\"data\"]}}.\nGenerate a natural language response based on this information.",
+        "input": "{{$json[\"data\"]}}"
+      },
+      "name": "Response Generator",
+      "type": "n8n-nodes-base.llama",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "return { user_query: $json.query, sql: $node['SQL Generator'].json['data'], data: $node['SQLite Execute'].json };"
+      },
+      "name": "Combine Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [400, 400]
+    },
+    {
+      "parameters": {
+        "sourceType": "body",
+        "options": {}
+      },
+      "name": "Start Node",
+      "type": "n8n-nodes-base.httpTrigger",
+      "typeVersion": 1,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Return to User",
+      "type": "n8n-nodes-base.httpResponse",
+      "typeVersion": 1,
+      "position": [600, 400]
+    }
+  ],
+  "connections": {
+    "Start Node": {
+      "main": [
+        [
+          {
+            "node": "SQL Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL Generator": {
+      "main": [
+        [
+          {
+            "node": "SQLite Execute",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQLite Execute": {
+      "main": [
+        [
+          {
+            "node": "Combine Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Data": {
+      "main": [
+        [
+          {
+            "node": "Response Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Generator": {
+      "main": [
+        [
+          {
+            "node": "Return to User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

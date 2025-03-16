@@ -1,0 +1,66 @@
+# Python-related
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.env
+*.DS_Store
+
+# Virtual environment
+venv/
+env/
+*.egg-info/
+*.dist-info/
+Pipfile
+Pipfile.lock
+
+# FastAPI
+*.log
+logs/
+instance/
+*.bak
+
+# Streamlit-specific
+.streamlit/
+.streamlit_secrets.toml
+.streamlit_config.toml
+
+# IDE-related
+.vscode/
+.idea/
+*.iml
+
+# OS-specific
+*.swp
+*.swo
+*.bak
+Thumbs.db
+ehthumbs.db
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Node (if using npm for frontend)
+node_modules/
+
+# Environment-specific
+*.env
+.env.*
+*.ini
+
+# Cache & Dependency files
+__pycache__/
+*.py[cod]
+*.ipynb_checkpoints
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Generated SQLAlchemy migrations
+migrations/
+
+# Jupyter Not

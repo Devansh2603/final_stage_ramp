@@ -1,0 +1,75 @@
+[
+  {
+    "question": "How many customers have registered vehicles?",
+    "sql_query": "SELECT COUNT(DISTINCT customer_id) AS total_customers FROM customer_vehicle_info;"
+  },
+  {
+    "question": "Get the service description for a given service ID.",
+    "sql_query": "SELECT service_desc FROM vehicle_service_details WHERE vehicle_svc_details_id = 11002;"
+  },
+  {
+    "question": "Find all services performed for a specific customer by mobile number.",
+    "sql_query": "SELECT cv.customer_name, vsd.service_desc, vss.service_date FROM vehicle_service_details vsd JOIN vehicle_service_summary vss ON vsd.vehicle_svc_id = vss.vehicle_svc_id JOIN customer_vehicle_info cv ON vss.customer_id = cv.customer_id WHERE cv.customer_mobile = '9876543210';"
+  },
+  {
+    "question": "Get the total revenue earned from all services.",
+    "sql_query": "SELECT SUM(service_net_amt) AS total_revenue FROM vehicle_service_summary;"
+  },
+  {
+    "question": "Find the most popular service (most booked).",
+    "sql_query": "SELECT vsd.service_desc, COUNT(vsd.vehicle_svc_id) AS total_bookings FROM vehicle_service_details vsd JOIN vehicle_service_summary vss ON vsd.vehicle_svc_id = vss.vehicle_svc_id GROUP BY vsd.service_desc ORDER BY total_bookings DESC LIMIT 1;"
+  },
+  {
+    "question": "List all vehicles associated with a specific customer (ID = 5).",
+    "sql_query": "SELECT customer_vehicle_number FROM customer_vehicle_info WHERE customer_id = 5;"
+  },
+  {
+    "question": "Find customers who have used a specific service.",
+    "sql_query": "SELECT cv.customer_name FROM customer_vehicle_info cv JOIN vehicle_service_summary vss ON cv.customer_id = vss.customer_id JOIN vehicle_service_details vsd ON vss.vehicle_svc_id = vsd.vehicle_svc_id WHERE vsd.service_desc LIKE '%Oil Change%';"
+  },
+  {
+    "question": "What is the total amount spent by each customer?",
+    "sql_query": "SELECT cv.customer_name, SUM(vss.total_amt) AS total_spent FROM customer_vehicle_info cv JOIN vehicle_service_summary vss ON cv.customer_id = vss.customer_id GROUP BY cv.customer_id ORDER BY total_spent DESC;"
+  },
+  {
+    "question": "Find all services provided for a specific customer (ID = 2).",
+    "sql_query": "SELECT vsd.service_desc, vss.service_date FROM vehicle_service_summary vss JOIN vehicle_service_details vsd ON vss.vehicle_svc_id = vsd.vehicle_svc_id WHERE vss.customer_id = 2;"
+  },
+  {
+    "question": "Get a list of customers with their total spending on services.",
+    "sql_query": "SELECT cv.customer_name, SUM(vss.total_amt) AS total_spent FROM customer_vehicle_info cv JOIN vehicle_service_summary vss ON cv.customer_id = vss.customer_id GROUP BY cv.customer_name ORDER BY total_spent DESC;"
+  },
+  {
+    "question": "How many vehicles are registered in the system?",
+    "sql_query": "SELECT COUNT(*) AS total_vehicles FROM customer_vehicle_info;"
+  },
+  {
+    "question": "Find customers who own more than one vehicle.",
+    "sql_query": "SELECT customer_id, COUNT(customer_vehicle_number) AS vehicle_count FROM customer_vehicle_info GROUP BY customer_id HAVING vehicle_count > 1;"
+  },
+  {
+    "question": "Find the most expensive service recorded.",
+    "sql_query": "SELECT service_desc, MAX(amount) AS highest_price FROM vehicle_service_details;"
+  },
+  {
+    "question": "List the latest vehicle service transactions.",
+    "sql_query": "SELECT vss.service_date, cv.customer_name, vsd.service_desc, vss.total_amt FROM vehicle_service_summary vss JOIN vehicle_service_details vsd ON vss.vehicle_svc_id = vsd.vehicle_svc_id JOIN customer_vehicle_info cv ON vss.customer_id = cv.customer_id ORDER BY vss.service_date DESC LIMIT 5;"
+  },
+  {
+    "question": "Which customer has spent the most money on services?",
+    "sql_query": "SELECT cv.customer_name, SUM(vss.total_amt) AS total_spent FROM customer_vehicle_info cv JOIN vehicle_service_summary vss ON cv.customer_id = vss.customer_id GROUP BY cv.customer_name ORDER BY total_spent DESC LIMIT 1;"
+  },
+  {
+    "question": "Find services performed for a specific customer (by mobile number).",
+    "sql_query": "SELECT vsd.service_desc, vss.service_date, vss.total_paid FROM vehicle_service_details vsd JOIN vehicle_service_summary vss ON vsd.vehicle_svc_id = vss.vehicle_svc_id JOIN customer_vehicle_info cvi ON vss.customer_id = cvi.customer_id WHERE cvi.customer_mobile = '9876543210';"
+  },
+  {
+    "question": "What is the total revenue of my garage?",
+    "sql_query": "SELECT SUM(service_net_amt) AS total_revenue FROM vehicle_service_summary;"
+  },
+  {
+     "question": "give customer details group by Hitech city?",
+     "sql_query": "SELECT c.customer_id, c.customer_name, c.customer_mobile, c.customer_email, c.customer_address FROM customer_vehicle_info c WHERE c.location_name = 'Hitech city' GROUP BY c.customer_id, c.customer_name, c.customer_mobile, c.customer_email, c.customer_address;"
+  }
+]
+
