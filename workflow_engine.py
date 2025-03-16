@@ -6,17 +6,19 @@ from sql_agent import query_ollama_together, get_database_schema
 from sqlalchemy import text, exc
 import logging
 import json
-from typing import List, Union, TypedDict
+from typing import List, Union, TypedDict,Optional
 from sql_agent import get_session
 import re
 
 # ✅ Define the Workflow State Schema
 class AgentState(TypedDict):
-    question: str
-    sql_query: str
-    query_result: Union[str, List[dict]]
-    sql_error: bool
-    garage_ids: List[int]  # Added garage filtering logic
+    question: str  # The user’s question
+    sql_query: str  # SQL query generated based on the question
+    query_result: Union[str, List[dict]]  # The result of the SQL query or error message
+    sql_error: bool  # Flag indicating if there was an SQL error
+    garage_ids: List[int]  # List of garage IDs associated with the user
+    userType: str  # The role of the user, e.g., 'owner' or 'customer'
+    customerID: Optional[int]  # The customer ID for customers, or None for other roles
 
 # ✅ Define workflow
 workflow = StateGraph(state_schema=AgentState)
@@ -55,21 +57,21 @@ def execute_sql(state, config):
     logging.debug(f"🟢 Executing SQL Query: {query}")
 
     # ✅ Define allowed tables per role
-    ROLE_TABLE_ACCESS = {
-        "admin": ["customer_vehicle_info", "job_card_details", "vehicle_service_details", "vehicle_service_summary"],
-        "owner": ["job_card_details", "vehicle_service_details", "vehicle_service_summary", "customer_vehicle_info"],
-        "customer": ["job_card_details","vehicle_service_summary"]  # Only customer-specific data
-    }
+    # ROLE_TABLE_ACCESS = {
+    #     "admin": ["customer_vehicle_info", "job_card_details", "vehicle_service_details", "vehicle_service_summary"],
+    #     "owner": ["job_card_details", "vehicle_service_details", "vehicle_service_summary", "customer_vehicle_info"],
+    #     "customer": ["job_card_details","vehicle_service_summary"]  # Only customer-specific data
+    # }
 
     # ✅ Extract tables used in the query
-    used_tables = [table for table in ROLE_TABLE_ACCESS["admin"] if table in query.lower()]
+    # used_tables = [table for table in ROLE_TABLE_ACCESS["admin"] if table in query.lower()]
 
     # 🚨 Reject customer queries for non-customer data
-    if user_role == "customer" and not set(used_tables).issubset(ROLE_TABLE_ACCESS["customer"]):
-        logging.error(f"❌ Query out of domain for role 'customer'. Query: {query}")
-        state["query_result"] = {"raw_answer": "", "human_readable": "Query out of domain"}
-        state["sql_error"] = True
-        return state
+    # if user_role == "customer" and not set(used_tables).issubset(ROLE_TABLE_ACCESS["customer"]):
+    #     logging.error(f"❌ Query out of domain for role 'customer'. Query: {query}")
+    #     state["query_result"] = {"raw_answer": "", "human_readable": "Query out of domain"}
+    #     state["sql_error"] = True
+    #     return state
 
     # ✅ Continue with SQL execution only if query is valid
     try:
@@ -96,7 +98,9 @@ def execute_sql(state, config):
 
 def convert_nl_to_sql(state, config):
     """Convert a natural language query into an SQL query with RAG-based retrieval."""
-    userType = state.get("userType", "owner")
+    print("state in nl to sql: ", state)
+    userType = state.get("userType")
+    print(f"userType in nl to sql: {userType}")
     customerID = state.get("customerID")
 
     logging.debug(f"🟠 Inside convert_nl_to_sql | userType: {userType} | customerID: {customerID}")
@@ -112,6 +116,7 @@ def convert_nl_to_sql(state, config):
 
     # ✅ Ensure customer_id filter is applied for customers only
     if userType == "customer" and customerID:
+        print(f"customerID: {customerID}")
         customer_filter = f"vs.customer_id = {customerID}"
     else:
         customer_filter = "True"
@@ -125,6 +130,7 @@ You are a MySQL SQL query generator. Follow these rules:
 - Correctly apply `JOIN ON` conditions.
 - For customers:
   - Always include `WHERE {customer_filter}` to restrict results to their own data.
+  - If a customer is querying for another customer’s data, return no results by using `WHERE {customer_filter}`.
 
 - Ensure table aliases are correctly defined in `FROM` or `JOIN` before use.
 

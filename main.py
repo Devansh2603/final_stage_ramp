@@ -23,7 +23,9 @@ app = FastAPI()
 # ✅ Garage Mapping for Manual Garage ID Handling
 GARAGE_DETAILS = {
     1: "11motors_data",
-    3: "flag_data"
+    3: "flag_data",
+    2: "ezdrive_data",
+    4: "admin_all"
 }
 
 # ✅ Request & Response Models
@@ -107,7 +109,9 @@ def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
     logging.debug(f"📥 Incoming request: {request}")
     start_time = time.time()  # ✅ Start Timer
 
-    user_role = request.role.lower()  # ✅ Ensure role comparison is case-insensitive
+    user_role = request.role.lower().strip()  # ✅ Ensure role comparison is case-insensitive
+    print(f"user role: {user_role}")
+    print(f"user id: {request.user_id}")
     user_id = request.user_id
 
     # ✅ Verify selected garage ID
@@ -118,31 +122,42 @@ def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
         # ✅ Get Garage IDs for the user (Owners only)
         garage_ids = get_user_vehicles(db, user_id) if user_role == "owner" else []
         garage_condition = f"cv.customer_id IN ({', '.join(map(str, garage_ids))})" if garage_ids else ""
+        print("********* Came in try block")
 
-        # ✅ Initial Query State
+        # ✅ Initial Query State - Ensure that all keys are initialized properly
         state = {
             "question": request.question,
             "sql_query": "",
             "query_result": {"raw_answer": "No data", "human_readable": "No response generated."},
             "sql_error": False,
-            "garage_ids": garage_ids,  # ✅ Always pass a list
-            "userType": user_role,     # ✅ Added userType
-            "customerID": user_id if user_role == "customer" else None  # ✅ Added customerID
+            "userType": user_role,  # Store the role correctly
+            "garage_ids": garage_ids,  # Include garage IDs even if it's empty
+            "customerID": user_id if user_role == "customer" else None,  # Only include customerID for customers
         }
 
-        config = {"configurable": {"session": db, "role": user_role}}  # ✅ Pass role to workflow
+        # Ensure integrity of state before passing to workflow
+        if "userType" not in state or not state["userType"]:
+            raise HTTPException(status_code=400, detail="Missing or invalid userType in state.")
+        
+        if "customerID" in state and user_role != "customer" and state["customerID"] is not None:
+            raise HTTPException(status_code=400, detail="CustomerID should only be provided for customers.")
+
+        # ✅ Configuration for the workflow
+        config = {"configurable": {"session": db, "role": user_role}}  # Pass role to workflow
 
         logging.debug(f"🔎 State before invoking workflow: {state}")
 
         # ✅ Compile and invoke workflow
         try:
             app_workflow = workflow.compile()
+            print("&&&&&&&& state before invoke: ", state)
             result = app_workflow.invoke(input=state, config=config)
             logging.debug(f"✅ Final Result: {result}")
         except Exception as e:
             logging.error(f"❌ Workflow Execution Error: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
 
+        # Calculate execution time
         execution_time = round(time.time() - start_time, 3)
 
         return QueryResponse(

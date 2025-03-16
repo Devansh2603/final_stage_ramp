@@ -28,7 +28,9 @@ def get_database_url(selected_garage):
     """Returns the database URL for the selected garage."""
     db_mapping = {
         "11motors_data": "mysql+pymysql://root:devanshjoshi@localhost/11motors_data",
-        "flag_data": "mysql+pymysql://root:devanshjoshi@localhost/flag_data"
+        "flag_data": "mysql+pymysql://root:devanshjoshi@localhost/flag_data",
+        "ezdrive_data": "mysql+pymysql://root:devanshjoshi@localhost/ezdrive_data",
+        "admin_all": "mysql+pymysql://root:devanshjoshi@localhost/admin_all"
     }
     return db_mapping.get(selected_garage, None)
 

@@ -2,9 +2,10 @@ import streamlit as st
 import requests
 
 # Garage details for dropdown selection with manual ID mapping
-garageDBDetails = [
-    {"id": 1, "name": "11motors_data", "dbURL": "", "user_ids": [2, 4]},
-    {"id": 3, "name": "flag_data", "dbURL": "", "user_ids": [1, 3]}
+garageDBDetails = [{"id": 1, "name": "11motors_data", "dbURL": ""},
+    {"id": 2, "name": "ezdrive_data", "dbURL": ""},
+    {"id": 3, "name": "flag_data", "dbURL": ""},
+    {"id": 4, "name": "admin_all", "dbURL": ""},
 ]
 
 # FastAPI backend endpoint
@@ -16,7 +17,22 @@ def main():
     st.title("🔍 RAMP GPT")
     st.subheader("Enter your question below to get instant answers!")
 
-    garage_names = [garage["name"] for garage in garageDBDetails]
+    # Add a dropdown for selecting the role scope (admin_user, ezdrive_user, flag_user)
+    scope = st.selectbox("👤 Select your Role Scope", ["admin_user", "ezdrive_user", "flag_user","11motors_user"])
+
+    # Add a dropdown for selecting the user role (admin, owner, customer)
+    user_role = st.selectbox("👤 Select your role", ["admin", "owner", "customer"]).lower()
+
+    # Determine which garages (databases) should be available based on the selected role scope
+    if scope == "admin_user":
+        garage_names = ["admin_all", "11motors_data", "ezdrive_data", "flag_data"]  # Admin sees all
+    elif scope == "ezdrive_user":
+        garage_names = ["ezdrive_data"]  # Only ezdrive_data for ezdrive users
+    elif scope == "flag_user":
+        garage_names = ["flag_data"]  # Only flag_data for flag users
+    elif scope == "11motors_user":
+        garage_names = ["11motors_data"]  # Only 11motors_data for 11motors users
+
     selected_garage = st.selectbox("🏠 Select a Garage", garage_names, index=None, placeholder="No options to select.")
 
     # Manually assign garage ID based on selection
@@ -43,7 +59,6 @@ def main():
 
     # User input for query
     user_query = st.text_area("💬 Ask a question:")
-    user_role = st.selectbox("👤 Select your role", ["admin", "owner", "customer"]).lower()
     user_id = st.text_input("🔢 Enter your User ID")
 
     if st.button("🚀 Submit Query"):
@@ -55,14 +70,14 @@ def main():
             st.error("❌ Please select a garage before submitting.")
             return
 
-        # ✅ Add selected_garage and selected_garage_id in the payload
+        # ✅ Add selected_garage, selected_garage_id, user_role, and scope in the payload
         payload = {
             "question": user_query,
-            "role": user_role,
+            "role": user_role,  # The original user role (admin, owner, customer)
+            "scope": scope,  # New role scope (admin_user, ezdrive_user, flag_user)
             "user_id": user_id,
             "selected_garage": selected_garage,
             "selected_garage_id": selected_garage_id
-            
         }
 
         # Send request to FastAPI backend
