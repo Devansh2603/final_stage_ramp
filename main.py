@@ -125,21 +125,23 @@ def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
             "sql_query": "",
             "query_result": {"raw_answer": "No data", "human_readable": "No response generated."},
             "sql_error": False,
-            "garage_ids": garage_ids  # ✅ Always pass a list
+            "garage_ids": garage_ids,  # ✅ Always pass a list
+            "userType": user_role,     # ✅ Added userType
+            "customerID": user_id if user_role == "customer" else None  # ✅ Added customerID
         }
+
         config = {"configurable": {"session": db, "role": user_role}}  # ✅ Pass role to workflow
 
-        logging.debug(f"Received query: {request.question} from user {request.user_id} with role {request.role}")
+        logging.debug(f"🔎 State before invoking workflow: {state}")
 
         # ✅ Compile and invoke workflow
         try:
-               app_workflow = workflow.compile()
-               result = app_workflow.invoke(input=state, config=config)
-               logging.debug(f"✅ Final Result: {result}")
+            app_workflow = workflow.compile()
+            result = app_workflow.invoke(input=state, config=config)
+            logging.debug(f"✅ Final Result: {result}")
         except Exception as e:
             logging.error(f"❌ Workflow Execution Error: {str(e)}")
-            raise HTTPException(status_code=500, detail="Workflow execution failed")
-
+            raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
 
         execution_time = round(time.time() - start_time, 3)
 
@@ -152,6 +154,3 @@ def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logging.error(f"❌ ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-    
-    
-

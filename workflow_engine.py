@@ -96,6 +96,11 @@ def execute_sql(state, config):
 
 def convert_nl_to_sql(state, config):
     """Convert a natural language query into an SQL query with RAG-based retrieval."""
+    userType = state.get("userType", "owner")
+    customerID = state.get("customerID")
+
+    logging.debug(f"🟠 Inside convert_nl_to_sql | userType: {userType} | customerID: {customerID}")
+
     session = config.get("configurable", {}).get("session")
     if not session:
         raise ValueError("Session is not available in config.")
@@ -105,12 +110,9 @@ def convert_nl_to_sql(state, config):
     retrieved_queries = retrieve_similar_queries(question)
     retrieved_examples = "\n".join(retrieved_queries) if retrieved_queries else "No relevant examples found."
 
-    user_role = config.get("configurable", {}).get("role", "").lower()
-    garage_id = state.get("garage_id")
-
-    # ✅ Ensure garage_id filter is applied for owners
-    if user_role == "owner" and garage_id:
-        customer_filter = f"vs.garage_id = {garage_id}"
+    # ✅ Ensure customer_id filter is applied for customers only
+    if userType == "customer" and customerID:
+        customer_filter = f"vs.customer_id = {customerID}"
     else:
         customer_filter = "True"
 
@@ -121,10 +123,8 @@ You are a MySQL SQL query generator. Follow these rules:
 - Only output a valid `SELECT` statement.
 - Use table aliases and define them before use.
 - Correctly apply `JOIN ON` conditions.
-- For owners:
-  - Only calculate total revenue using `SUM(vs.total_amt)`.
-  - Do NOT include `garage_name` or JOIN the `garages` table.
-  - Always include `WHERE {customer_filter}`.
+- For customers:
+  - Always include `WHERE {customer_filter}` to restrict results to their own data.
 
 - Ensure table aliases are correctly defined in `FROM` or `JOIN` before use.
 
@@ -153,6 +153,8 @@ You are a MySQL SQL query generator. Follow these rules:
         state["query_result"] = {"error": str(e)}
 
     return state
+
+
 def generate_human_readable_response_with_llama(state):
     """Generate both a raw SQL query result and a human-readable response."""
 
@@ -184,3 +186,4 @@ workflow.add_node("execute_sql", execute_sql)
 workflow.add_edge("convert_nl_to_sql", "execute_sql")
 workflow.add_edge("execute_sql", END)
 workflow.set_entry_point("convert_nl_to_sql")
+
