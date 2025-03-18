@@ -70,6 +70,16 @@
   {
      "question": "give customer details group by Hitech city?",
      "sql_query": "SELECT c.customer_id, c.customer_name, c.customer_mobile, c.customer_email, c.customer_address FROM customer_vehicle_info c WHERE c.location_name = 'Hitech city' GROUP BY c.customer_id, c.customer_name, c.customer_mobile, c.customer_email, c.customer_address;"
-  }
+  },
+  {
+    "question": "can you tell my vehicle service history?",
+     "sql_query": "SELECT vsd.service_desc, vs.service_amt, vs.service_date, vs.service_status FROM vehicle_service_details vsd JOIN vehicle_service_summary vs ON vsd.vehicle_svc_details_id = vs.vehicle_svc_id WHERE vs.customer_id = {customer_id} ORDER BY vs.service_date DESC;"
+  },
+  {
+    "question": "How many {vehicle_brand} vehicles have I serviced?",
+    "sql_query": "SELECT COUNT(*) AS total_serviced_vehicles  FROM customer_vehicle_info cvi JOIN job_card_details jcd ON cvi.customer_id = jcd.customer_id JOIN vehicle_service_details vsd ON jcd.vehicle_svc_id = vsd.vehicle_svc_id WHERE LOWER(cvi.vehicle_type) LIKE LOWER('%{vehicle_brand}%');"
+}
+
+
 ]
 

@@ -9,6 +9,8 @@ import json
 from typing import List, Union, TypedDict,Optional
 from sql_agent import get_session
 import re
+# from sql_agent import get_vehicle_brands_from_db
+
 
 # ✅ Define the Workflow State Schema
 class AgentState(TypedDict):
@@ -120,6 +122,14 @@ def convert_nl_to_sql(state, config):
         customer_filter = f"vs.customer_id = {customerID}"
     else:
         customer_filter = "True"
+        
+    #     vehicle_brands = get_vehicle_brands_from_db(session)
+    # detected_brand = next((brand for brand in vehicle_brands if brand.lower() in question.lower()), None)
+
+    # # ✅ Inject the detected vehicle brand dynamically
+    # if detected_brand:
+    #     question = question.replace(detected_brand, "{vehicle_brand}")
+
 
     # ✅ Improved Prompt Instructions
     prompt = f"""
@@ -128,6 +138,10 @@ You are a MySQL SQL query generator. Follow these rules:
 - Only output a valid `SELECT` statement.
 - Use table aliases and define them before use.
 - Correctly apply `JOIN ON` conditions.
+- Use `vsd.service_desc` instead of `vs.service_desc`.
+- Use `vs.service_amt` instead of `vsd.service_amt`.
+
+- Correct JOIN condition: `ON vsd.vehicle_svc_details_id = vs.vehicle_svc_id`.
 - For customers:
   - Always include `WHERE {customer_filter}` to restrict results to their own data.
   - If a customer is querying for another customer’s data, return no results by using `WHERE {customer_filter}`.
@@ -151,6 +165,14 @@ You are a MySQL SQL query generator. Follow these rules:
         logging.debug(f"🟢 Generated SQL Query: {sql_query}")
 
         sql_query = clean_sql_query(sql_query)
+        # sql_query = sql_query.replace("{vehicle_brand}", detected_brand or "")
+
+        if "vsd.service_amt" in sql_query:
+            sql_query = sql_query.replace("vsd.service_amt", "vs.service_amt")
+
+        if "vsd.vehicle_svc_id = vs.vehicle_svc_id" in sql_query:
+            sql_query = sql_query.replace("vsd.vehicle_svc_id", "vsd.vehicle_svc_details_id")
+
         state["sql_query"] = sql_query
 
     except Exception as e:
