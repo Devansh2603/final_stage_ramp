@@ -7,6 +7,7 @@ import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import logging
+# from sqlalchemy import text
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -102,7 +103,7 @@ def query_ollama_together(prompt: str, model: str) -> str:
     try:
         url = "https://api.together.xyz/v1/chat/completions"
         headers = {
-            "Authorization": "Bearer d2e6fb732211ac24c7bd473cabe27ae43aab7cbf89c989c8e8c8a9458c49d77c",
+            "Authorization": "Bearer 5240ab1e589660c471498530946bcf2e5bc8aac0537823fc3d9e8487ae3af8b9",
             "Content-Type": "application/json"
         }
         payload = {
@@ -164,6 +165,32 @@ def get_database_schema(session):
 
     return schema
 
+# def detect_vehicle_brand(question, session):
+#     """Dynamically detect vehicle brand from the database."""
+#     try:
+#         result = session.execute(
+#             "SELECT DISTINCT SUBSTRING_INDEX(vehicle_type, '-', 1) AS brand FROM customer_vehicle_info;"
+#         )
+#         vehicle_brands = [row[0].strip().lower() for row in result]
+#         detected_brand = next(
+#             (brand for brand in vehicle_brands if brand.lower() in question.lower()), None
+#         )
+#         return detected_brand
+#     except Exception as e:
+#         logging.error(f"❌ Error fetching vehicle brands from DB: {e}")
+#         return None
+
+# def get_all_vehicle_brands(session):
+#     """Fetch all distinct vehicle brands from the database."""
+#     try:
+#         query = text("SELECT DISTINCT SUBSTRING_INDEX(vehicle_type, '-', 1) AS brand FROM customer_vehicle_info;")
+#         result = session.execute(query).fetchall()
+#         return [row[0] for row in result]
+#     except Exception as e:
+#         logging.error(f"❌ Error fetching vehicle brands: {str(e)}")
+#         return []
+
 
 
 __all__ = ["get_session", "query_ollama_together", "retrieve_similar_queries", "get_database_schema"]
+

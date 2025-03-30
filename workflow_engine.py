@@ -9,7 +9,7 @@ import json
 from typing import List, Union, TypedDict,Optional
 from sql_agent import get_session
 import re
-# from sql_agent import get_vehicle_brands_from_db
+# from sql_agent import  get_all_vehicle_brands
 
 
 # ✅ Define the Workflow State Schema
@@ -122,14 +122,10 @@ def convert_nl_to_sql(state, config):
         customer_filter = f"vs.customer_id = {customerID}"
     else:
         customer_filter = "True"
-        
-    #     vehicle_brands = get_vehicle_brands_from_db(session)
-    # detected_brand = next((brand for brand in vehicle_brands if brand.lower() in question.lower()), None)
 
-    # # ✅ Inject the detected vehicle brand dynamically
-    # if detected_brand:
-    #     question = question.replace(detected_brand, "{vehicle_brand}")
-
+    # ✅ Detect vehicle brand dynamically from question
+    detected_brand_match = re.search(r"\b(Audi|BMW|Mercedes|Jaguar|Toyota|Honda|Ford|Chevrolet|Nissan|Hyundai|Kia)\b", question, re.IGNORECASE)
+    detected_brand = detected_brand_match.group(0) if detected_brand_match else None
 
     # ✅ Improved Prompt Instructions
     prompt = f"""
@@ -140,8 +136,15 @@ You are a MySQL SQL query generator. Follow these rules:
 - Correctly apply `JOIN ON` conditions.
 - Use `vsd.service_desc` instead of `vs.service_desc`.
 - Use `vs.service_amt` instead of `vsd.service_amt`.
-
 - Correct JOIN condition: `ON vsd.vehicle_svc_details_id = vs.vehicle_svc_id`.
+
+- For vehicle type queries:
+  - Always use `SUBSTRING_INDEX(cvi.vehicle_type, '-', 1) = '{detected_brand}'` instead of `cvi.vehicle_type = 'Audi'`.
+  - **For counting serviced vehicles by type, always use:**
+  ```sql
+     
+ SELECT COUNT(*) AS total_serviced_vehicles FROM customer_vehicle_info cvi INNER JOIN vehicle_service_summary vss ON cvi.customer_id = vss.customer_id INNER JOIN vehicle_service_details vsd ON vss.vehicle_svc_id = vsd.vehicle_svc_id WHERE SUBSTRING_INDEX(cvi.vehicle_type, '-', 1) = '{detected_brand}';
+
 - For customers:
   - Always include `WHERE {customer_filter}` to restrict results to their own data.
   - If a customer is querying for another customer’s data, return no results by using `WHERE {customer_filter}`.
@@ -165,46 +168,105 @@ You are a MySQL SQL query generator. Follow these rules:
         logging.debug(f"🟢 Generated SQL Query: {sql_query}")
 
         sql_query = clean_sql_query(sql_query)
-        # sql_query = sql_query.replace("{vehicle_brand}", detected_brand or "")
+        
+
+
+ 
+        # ✅ Fix vehicle brand filtering issue
+        if detected_brand and "cvi.vehicle_type" in sql_query:
+            sql_query = re.sub(r"cvi\.vehicle_type\s*=\s*'[^']+'", f"SUBSTRING_INDEX(cvi.vehicle_type, '-', 1) = '{detected_brand}'", sql_query)
+            
+       # ✅ Ensure correct column name for service amount
+        if "vs.service_amt" in sql_query:
+         sql_query = sql_query.replace("vs.service_amt", "vss.service_net_amt")
 
         if "vsd.service_amt" in sql_query:
-            sql_query = sql_query.replace("vsd.service_amt", "vs.service_amt")
+         sql_query = sql_query.replace("vsd.service_amt", "vss.service_net_amt")  # ✅ Ensure correct column
 
-        if "vsd.vehicle_svc_id = vs.vehicle_svc_id" in sql_query:
-            sql_query = sql_query.replace("vsd.vehicle_svc_id", "vsd.vehicle_svc_details_id")
+        # if "vehicle_service_summary" not in sql_query:
+        #  sql_query += " INNER JOIN vehicle_service_summary vss ON vsd.vehicle_svc_id = vss.vehicle_svc_id"  # ✅ Ensure JOIN exists
+
+# ✅ Fix LIKE statements
+        if "LIKE '%%" in sql_query:
+         sql_query = sql_query.replace("LIKE '%%", "LIKE '%").replace("%%'", "%'")
+
+ # ✅ Remove unnecessary `AND True;`
+         sql_query = sql_query.replace("AND True;", "")
+
+# ✅ Fix incorrect JOIN condition from vehicle_service_details to vehicle_service_summary
+         if "vsd.vehicle_svc_details_id" in sql_query:
+            sql_query = sql_query.replace("vsd.vehicle_svc_details_id", "vsd.vehicle_svc_id")
+        if "vsd.service_desc = " in sql_query:
+         sql_query = sql_query.replace("vsd.service_desc =", "vsd.service_desc LIKE")
+        sql_query = sql_query.replace("';", "%';")  # Add wildcard for partial matches
+        
+        if "COUNT(*)" in sql_query:
+          sql_query = sql_query.replace("COUNT(*)", "COUNT(DISTINCT cvi.customer_vehicle_number)")
+
+
+
 
         state["sql_query"] = sql_query
 
     except Exception as e:
         logging.error(f"❌ Error Occurred: {str(e)}")
         state["sql_query"] = "Query could not be generated."
-        state["query_result"] = {"error": str(e)}
+        state["query_result"] = {"error": str(e)} 
 
     return state
 
 
+
 def generate_human_readable_response_with_llama(state):
-    """Generate both a raw SQL query result and a human-readable response."""
+    """Generate a human-readable response from query results."""
 
     query_result = state["query_result"]
+
     if state["sql_error"]:
         state["query_result"] = {
             "raw_answer": query_result,
-            "human_readable": f"An error occurred: {query_result}"
+            "human_readable": f"An error occurred while executing the query: {query_result}"
         }
         return state
 
     if not query_result or "data" not in query_result or not query_result["data"]:
         state["query_result"] = {
             "raw_answer": query_result,
-            "human_readable": "No relevant data found."
+            "human_readable": "No relevant data found for your query."
         }
         return state
 
     results = query_result["data"]
+
+    # ✅ Handle queries with a single numerical result (like total revenue, total count, sum)
+    if len(results) == 1 and len(results[0]) == 1:
+        key, value = list(results[0].items())[0]
+        state["query_result"] = {
+            "raw_answer": results,
+            "human_readable": f"The {key.replace('_', ' ')} is **{value:,.2f}**." if isinstance(value, (int, float)) else f"The {key.replace('_', ' ')} is **{value}**."
+        }
+        return state
+
+    # ✅ Handle queries with a single row but multiple columns (like a customer details query)
+    if len(results) == 1 and len(results[0]) > 1:
+        row = results[0]
+        response_text = "Here is the information you requested:\n\n"
+        response_text += "\n".join([f"**{k.replace('_', ' ').title()}**: {v}" for k, v in row.items()])
+        state["query_result"] = {
+            "raw_answer": results,
+            "human_readable": response_text
+        }
+        return state
+
+    # ✅ Handle multiple rows (like listing all services, customers, vehicles, etc.)
+    response_text = "Here are the results:\n\n"
+    for idx, row in enumerate(results, start=1):
+        row_text = f"**{idx}.** " + ", ".join([f"**{k.replace('_', ' ').title()}**: {v}" for k, v in row.items()])
+        response_text += row_text + "\n\n"
+
     state["query_result"] = {
         "raw_answer": results,
-        "human_readable": f"Data found: {results}"
+        "human_readable": response_text.strip()
     }
 
     return state

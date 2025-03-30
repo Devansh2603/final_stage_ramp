@@ -86,8 +86,8 @@ def main():
             if response.status_code == 200:
                 data = response.json()
                 st.success("✅ Query executed successfully!")
-                st.write("### 📝 SQL Query:")
-                st.code(data.get("query_result", {}).get("raw_answer", "N/A"), language="sql")
+                # st.write("### 📝 SQL Query:")
+                # st.code(data.get("query_result", {}).get("raw_answer", "N/A"), language="sql")
                 st.write("### 🤖 AI Response:")
                 st.write(data.get("query_result", {}).get("human_readable", "No response generated."))
                 st.write(f"⏱ Execution Time: {data.get('execution_time', 'N/A')} sec")
